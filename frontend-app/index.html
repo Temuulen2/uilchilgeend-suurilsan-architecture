@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>SOA Lab Frontend</title>
+<style>
+body { font-family: Arial; padding: 20px; }
+section { display: none; margin-top: 20px; }
+section.active { display: block; }
+input { display: block; margin: 5px 0; padding: 5px; width: 250px; }
+button { padding: 5px 10px; margin: 5px 0; }
+pre { background: #f4f4f4; padding: 10px; }
+</style>
+</head>
+<body>
+
+<h1>SOA Lab SPA Frontend</h1>
+
+<!-- Navigation -->
+<div>
+<button onclick="showSection('register')">Register</button>
+<button onclick="showSection('login')">Login</button>
+<button onclick="showSection('profile')">Profile</button>
+</div>
+
+<!-- Register -->
+<section id="register">
+<h2>Register</h2>
+<input id="regUsername" placeholder="Username">
+<input id="regPassword" type="password" placeholder="Password">
+<button onclick="register()">Register</button>
+</section>
+
+<!-- Login -->
+<section id="login">
+<h2>Login</h2>
+<input id="loginUsername" placeholder="Username">
+<input id="loginPassword" type="password" placeholder="Password">
+<button onclick="login()">Login</button>
+</section>
+
+<!-- Profile -->
+<section id="profile">
+<h2>Create Profile</h2>
+<input id="name" placeholder="Name">
+<input id="email" placeholder="Email">
+<input id="bio" placeholder="Bio">
+<input id="phone" placeholder="Phone">
+<button onclick="createProfile()">Save Profile</button>
+
+<h2>Get Profile</h2>
+<input id="userid" placeholder="Profile ID">
+<button onclick="getProfile()">Get</button>
+
+<pre id="result"></pre>
+</section>
+
+<script>
+const SOAP_URL = "http://localhost:8080";    // SOAP Service
+const JSON_URL = "http://localhost:8081";    // JSON Service
+
+// Show section
+function showSection(id){
+    document.querySelectorAll('section').forEach(s => s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+}
+
+// Register
+async function register(){
+    let username = document.getElementById("regUsername").value;
+    let password = document.getElementById("regPassword").value;
+
+    let res = await fetch(SOAP_URL + "/register",{
+        method:"POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({username, password})
+    });
+    alert(await res.text());
+}
+
+// Login
+async function login(){
+    let username = document.getElementById("loginUsername").value;
+    let password = document.getElementById("loginPassword").value;
+
+    let res = await fetch(SOAP_URL + "/login",{
+        method:"POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({username, password})
+    });
+    let token = await res.text();
+    localStorage.setItem("token", token);
+    alert("Login success!");
+}
+
+// Create Profile
+async function createProfile(){
+    let token = localStorage.getItem("token");
+    if(!token){ alert("Login first!"); return; }
+
+    let name = document.getElementById("name").value;
+    let email = document.getElementById("email").value;
+    let bio = document.getElementById("bio").value;
+    let phone = document.getElementById("phone").value;
+
+    let res = await fetch(JSON_URL + "/users",{
+        method:"POST",
+        headers:{
+            "Content-Type":"application/json",
+            "Authorization": token
+        },
+        body: JSON.stringify({name,email,bio,phone})
+    });
+
+    alert("Profile created!");
+}
+
+// Get Profile
+async function getProfile(){
+    let token = localStorage.getItem("token");
+    if(!token){ alert("Login first!"); return; }
+
+    let id = document.getElementById("userid").value;
+    if(!id){ alert("Enter profile ID!"); return; }
+
+    let res = await fetch(JSON_URL + "/users/" + id,{
+        headers: {"Authorization": token}
+    });
+
+    let data = await res.json();
+    document.getElementById("result").innerText = JSON.stringify(data,null,2);
+}
+</script>
+
+</body>
+</html>
