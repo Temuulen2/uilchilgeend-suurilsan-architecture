@@ -2,135 +2,693 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>SOA Lab Frontend</title>
+<title>SOA Lab — User System</title>
 <style>
-body { font-family: Arial; padding: 20px; }
-section { display: none; margin-top: 20px; }
-section.active { display: block; }
-input { display: block; margin: 5px 0; padding: 5px; width: 250px; }
-button { padding: 5px 10px; margin: 5px 0; }
-pre { background: #f4f4f4; padding: 10px; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f2f5; min-height: 100vh; }
+
+  /* ── Header ── */
+  header {
+    background: #1a1a2e; color: #fff; padding: 14px 24px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  header h1 { font-size: 1.2rem; letter-spacing: 1px; }
+  #loggedUser { font-size: 0.85rem; color: #aaa; }
+
+  /* ── Service status bar ── */
+  #statusBar {
+    background: #16213e; color: #fff;
+    display: flex; gap: 16px; padding: 8px 24px; flex-wrap: wrap;
+    font-size: 0.8rem; align-items: center;
+  }
+  .statusBadge {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 3px 10px; border-radius: 12px; font-weight: 600;
+  }
+  .statusBadge.ok  { background: #1a4731; color: #4caf82; }
+  .statusBadge.err { background: #4a1a1a; color: #f87171; }
+  .statusBadge.loading { background: #333; color: #aaa; }
+  #refreshBtn {
+    margin-left: auto; background: #0f3460; color: #fff;
+    border: none; border-radius: 8px; padding: 4px 12px; cursor: pointer;
+    font-size: 0.8rem;
+  }
+
+  /* ── Nav tabs ── */
+  nav { background: #fff; border-bottom: 2px solid #e0e0e0; display: flex; padding: 0 24px; }
+  nav button {
+    background: none; border: none; padding: 14px 20px;
+    font-size: 0.95rem; cursor: pointer; color: #555;
+    border-bottom: 3px solid transparent; margin-bottom: -2px;
+    transition: all 0.2s;
+  }
+  nav button:hover { color: #0f3460; }
+  nav button.active { color: #0f3460; border-bottom-color: #0f3460; font-weight: 700; }
+  nav button.hidden { display: none; }
+
+  /* ── Main ── */
+  main { max-width: 560px; margin: 36px auto; padding: 0 16px; }
+  .card { background: #fff; border-radius: 12px; padding: 28px; box-shadow: 0 2px 12px rgba(0,0,0,.08); }
+  h2 { font-size: 1.15rem; color: #1a1a2e; margin-bottom: 18px; }
+
+  label { display: block; font-size: 0.85rem; color: #555; margin: 10px 0 4px; }
+  input {
+    display: block; width: 100%; padding: 10px 12px; border: 1px solid #ddd;
+    border-radius: 8px; font-size: 0.95rem; outline: none; transition: border 0.2s;
+  }
+  input:focus { border-color: #0f3460; }
+
+  button.btn {
+    display: block; width: 100%; margin-top: 16px;
+    background: #0f3460; color: #fff; border: none; border-radius: 8px;
+    padding: 11px; font-size: 1rem; cursor: pointer; transition: background 0.2s;
+  }
+  button.btn:hover { background: #162c54; }
+  button.btn:disabled { background: #aaa; cursor: not-allowed; }
+  button.btn.danger { background: #c0392b; }
+  button.btn.danger:hover { background: #922b21; }
+  button.btn.secondary { background: #555; }
+
+  /* ── Alerts ── */
+  .alert {
+    padding: 10px 14px; border-radius: 8px; font-size: 0.9rem;
+    margin-top: 14px; display: none;
+  }
+  .alert.show { display: block; }
+  .alert.success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+  .alert.error   { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+  .alert.info    { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+
+  /* ── Profile display ── */
+  .profileCard {
+    background: #f8f9ff; border: 1px solid #dde; border-radius: 10px;
+    padding: 18px; margin-top: 18px; display: none;
+  }
+  .profileCard.show { display: block; }
+  .profileCard h3 { font-size: 1.05rem; color: #1a1a2e; margin-bottom: 10px; }
+  .profileRow { display: flex; gap: 8px; margin: 6px 0; font-size: 0.9rem; }
+  .profileRow .lbl { color: #777; min-width: 60px; }
+  .profileRow .val { color: #222; font-weight: 600; }
+
+  .tokenBox {
+    background: #eef2ff; border-radius: 8px; padding: 10px 12px;
+    font-size: 0.75rem; word-break: break-all; color: #334; margin-top: 10px;
+    display: none;
+  }
+  .tokenBox.show { display: block; }
+
+  section { display: none; }
+  section.active { display: block; }
 </style>
 </head>
 <body>
 
-<h1>SOA Lab SPA Frontend</h1>
+<header>
+  <h1> SOA Lab — User System</h1>
+  <span id="loggedUser">Not logged in</span>
+</header>
 
-<!-- Navigation -->
-<div>
-<button onclick="showSection('register')">Register</button>
-<button onclick="showSection('login')">Login</button>
-<button onclick="showSection('profile')">Profile</button>
+<!-- Service status bar -->
+<div id="statusBar">
+  <span>Services:</span>
+  <span id="soapStatus" class="statusBadge loading"> SOAP …</span>
+  <span id="jsonStatus" class="statusBadge loading"> JSON …</span>
+  <span id="fileStatus" class="statusBadge loading"> FILE …</span>
+  <span id="serverInfo" style="margin-left:8px; color:#aaa; font-size:0.75rem;"></span>
+  <button id="refreshBtn" onclick="checkServices()">↻ Refresh</button>
 </div>
 
-<!-- Register -->
-<section id="register">
-<h2>Register</h2>
-<input id="regUsername" placeholder="Username">
-<input id="regPassword" type="password" placeholder="Password">
-<button onclick="register()">Register</button>
-</section>
+<!-- Nav tabs -->
+<nav>
+  <button id="tab-register" class="active"    onclick="showTab('register')"> Register</button>
+  <button id="tab-login"                       onclick="showTab('login')"> Login</button>
+  <button id="tab-profile" class="hidden"      onclick="showTab('profile')"> Profile</button>
+  <button id="tab-files"                       onclick="showTab('files')"> Files</button>
+</nav>
 
-<!-- Login -->
-<section id="login">
-<h2>Login</h2>
-<input id="loginUsername" placeholder="Username">
-<input id="loginPassword" type="password" placeholder="Password">
-<button onclick="login()">Login</button>
-</section>
+<main>
 
-<!-- Profile -->
-<section id="profile">
-<h2>Create Profile</h2>
-<input id="name" placeholder="Name">
-<input id="email" placeholder="Email">
-<input id="bio" placeholder="Bio">
-<input id="phone" placeholder="Phone">
-<button onclick="createProfile()">Save Profile</button>
+  <!-- Register -->
+  <section id="register" class="active">
+    <div class="card">
+      <h2>Create Account</h2>
+      <label>Username</label>
+      <input id="regUsername" placeholder="e.g. gerel123" autocomplete="username">
+      <label>Password</label>
+      <input id="regPassword" type="password" placeholder="Password" autocomplete="new-password">
+      <button class="btn" onclick="doRegister()">Register</button>
+      <div id="regAlert" class="alert"></div>
+    </div>
+  </section>
 
-<h2>Get Profile</h2>
-<input id="userid" placeholder="Profile ID">
-<button onclick="getProfile()">Get</button>
+  <!-- Login -->
+  <section id="login">
+    <div class="card">
+      <h2>Login</h2>
+      <label>Username</label>
+      <input id="loginUsername" placeholder="Your username" autocomplete="username">
+      <label>Password</label>
+      <input id="loginPassword" type="password" placeholder="Your password" autocomplete="current-password">
+      <button class="btn" onclick="doLogin()">Login</button>
+      <div id="loginAlert" class="alert"></div>
+      <div id="tokenBox" class="tokenBox"></div>
+    </div>
+  </section>
 
-<pre id="result"></pre>
-</section>
+  <!-- Profile -->
+  <section id="profile">
+    <div class="card">
+      <h2>My Profile</h2>
+
+      <label>Full Name</label>
+      <input id="pName"  placeholder="Bat Erdene">
+      <label>Email</label>
+      <input id="pEmail" placeholder="bat@example.com">
+      <label>Bio</label>
+      <input id="pBio"   placeholder="Short bio…">
+      <label>Phone</label>
+      <input id="pPhone" placeholder="+976 99001234">
+
+      <button class="btn"        onclick="saveProfile()"> Save Profile</button>
+      <button class="btn secondary" onclick="loadProfile()" style="margin-top:8px"> Reload Profile</button>
+
+      <div id="profileAlert" class="alert"></div>
+
+      <div id="profileDisplay" class="profileCard">
+        <h3>Saved Profile</h3>
+        <div class="profileRow"><span class="lbl">ID</span>    <span class="val" id="dId">—</span></div>
+        <div class="profileRow"><span class="lbl">Name</span>  <span class="val" id="dName">—</span></div>
+        <div class="profileRow"><span class="lbl">Email</span> <span class="val" id="dEmail">—</span></div>
+        <div class="profileRow"><span class="lbl">Bio</span>   <span class="val" id="dBio">—</span></div>
+        <div class="profileRow"><span class="lbl">Phone</span> <span class="val" id="dPhone">—</span></div>
+        <div class="profileRow" id="photoRow" style="display:none">
+          <span class="lbl">Photo</span>
+          <span class="val"><img id="dPhoto" src="" alt="profile photo" style="max-width:120px;border-radius:8px;border:1px solid #ddd;"></span>
+        </div>
+        <button class="btn danger" onclick="deleteProfile()" style="margin-top:12px"> Delete Profile</button>
+      </div>
+
+      <button class="btn secondary" onclick="doLogout()" style="margin-top:20px"> Logout</button>
+    </div>
+  </section>
+
+  <!-- Files -->
+  <section id="files">
+    <div class="card">
+      <h2> Image Upload</h2>
+
+      <label>Зураг сонгох (PNG, JPG, GIF, WEBP)</label>
+      <input type="file" id="fileInput" accept="image/*" style="padding:6px">
+
+      <button class="btn" onclick="uploadFile()" style="margin-top:12px"> Upload</button>
+      <div id="fileAlert" class="alert"></div>
+
+      <div id="uploadedPreview" style="display:none; margin-top:16px; text-align:center">
+        <p style="font-size:0.85rem; color:#555; margin-bottom:8px">Uploaded image:</p>
+        <img id="uploadedImg" src="" alt="uploaded" style="max-width:100%; border-radius:8px; border:1px solid #ddd;">
+        <p id="uploadedFilename" style="font-size:0.75rem; color:#888; margin-top:6px; word-break:break-all;"></p>
+      </div>
+
+      <hr style="margin:20px 0; border:none; border-top:1px solid #eee;">
+      <h2> Uploaded Images</h2>
+      <button class="btn secondary" onclick="loadFiles()" style="margin-top:0"> Load List</button>
+      <div id="fileList" style="margin-top:14px; display:flex; flex-wrap:wrap; gap:10px;"></div>
+    </div>
+  </section>
+
+</main>
 
 <script>
-const SOAP_URL = "http://localhost:8080";    // SOAP Service
-const JSON_URL = "http://localhost:8081";    // JSON Service
+// ── Service URLs ─────────────────────────────────────────────────────────
+// Lab 08: API Gateway deploy хийсний дараа доорх GATEWAY_URL-г бөглөнө.
+// DO App Platform → api-gateway → App URL-г хуулж тавина.
+// Жишээ: "https://soa-api-gateway-xxxxx.ondigitalocean.app"
+//
+// ⚠️  GATEWAY_URL хоосон ("") байвал Lab 07-ийн шууд холболт ажиллана.
+//     Gateway deploy хийгдсэний дараа л бөглөнө!
+const GATEWAY_URL = "https://starfish-app-csthw.ondigitalocean.app";
 
-// Show section
-function showSection(id){
-    document.querySelectorAll('section').forEach(s => s.classList.remove('active'));
-    document.getElementById(id).classList.add('active');
+const _gw = GATEWAY_URL.replace(/\/$/, '');
+
+// Gateway идэвхтэй бол бүх хүсэлт нэг URL-оор явна.
+// Gateway хоосон бол шууд Lab 07-ийн URL-уудаар явна.
+const SOAP_URL = _gw ? _gw + "/api/soap" : "https://soa-soap-service-zdwzn.ondigitalocean.app";
+const JSON_URL = _gw ? _gw + "/api"      : "https://soa-json-service-7kfhj.ondigitalocean.app";
+const FILE_URL = _gw ? _gw + "/api"      : "https://soa-file-manager-service-8hsqq.ondigitalocean.app";
+// Spaces CDN base for displaying images
+const SPACES_CDN_BASE = "https://temuulen-file.sgp1.digitaloceanspaces.com";
+
+// ─────────────────── State ────────────────────────────────────────────────
+let currentToken    = localStorage.getItem("token")    || null;
+let currentUsername = localStorage.getItem("username") || null;
+let currentProfileId= localStorage.getItem("profileId")|| null;
+
+// ─────────────────── Init ─────────────────────────────────────────────────
+window.onload = function() {
+  checkServices();
+  if (currentToken) {
+    restoreSession();
+  }
+};
+
+function restoreSession() {
+  document.getElementById("loggedUser").textContent = "Logged in as: " + currentUsername;
+  document.getElementById("tab-profile").classList.remove("hidden");
+  showTab("profile");
+  if (currentProfileId) loadProfile();
 }
 
-// Register
-async function register(){
-    let username = document.getElementById("regUsername").value;
-    let password = document.getElementById("regPassword").value;
+// ─────────────────── Service health check ─────────────────────────────────
+async function checkServices() {
+  setStatus("soapStatus", "loading", " SOAP …");
+  setStatus("jsonStatus",  "loading", " JSON …");
+  setStatus("fileStatus",  "loading", "⏳ FILE …");
 
-    let res = await fetch(SOAP_URL + "/register",{
-        method:"POST",
-        headers: {"Content-Type":"application/json"},
-        body: JSON.stringify({username, password})
-    });
-    alert(await res.text());
+  // ── Gateway горим: нэг /health дуудлагаар бүх сервисийн байдал ирнэ ─────
+  if (_gw) {
+    try {
+      const r    = await fetchWithTimeout(_gw + "/health", 8000);
+      const data = await r.json();
+      const ok   = (v) => v && !v.startsWith('DOWN') && !v.startsWith('HTTP');
+      const rd   = data.redis === 'ready' ? ' · Redis ✓' : ' · Redis ✗';
+      setStatus("soapStatus", ok(data.services?.soap) ? "ok" : "err", " SOAP — " + (data.services?.soap || '?'));
+      setStatus("jsonStatus",  ok(data.services?.json) ? "ok" : "err", " JSON — " + (data.services?.json || '?'));
+      setStatus("fileStatus",  ok(data.services?.file) ? "ok" : "err", " FILE — " + (data.services?.file || '?') + rd);
+    } catch(e) {
+      const msg = " Gateway — Cannot connect";
+      setStatus("soapStatus", "err", msg);
+      setStatus("jsonStatus",  "err", msg);
+      setStatus("fileStatus",  "err", msg);
+    }
+    return;
+  }
+
+  // ── Шууд горим (GATEWAY_URL хоосон үед): сервис тус бүрийг шалгана ──────
+  try {
+    const r = await fetchWithTimeout(SOAP_URL + "/health", 5000);
+    const txt = await r.text();
+    if (r.ok) setStatus("soapStatus", "ok",  " SOAP — " + txt);
+    else       setStatus("soapStatus", "err", " SOAP — " + txt);
+  } catch(e) {
+    setStatus("soapStatus", "err", " SOAP — Cannot connect");
+  }
+
+  try {
+    const r = await fetchWithTimeout(JSON_URL + "/health", 5000);
+    const txt = await r.text();
+    if (r.ok) setStatus("jsonStatus", "ok",  " JSON — " + txt);
+    else       setStatus("jsonStatus", "err", " JSON — " + txt);
+  } catch(e) {
+    setStatus("jsonStatus", "err", " JSON — Cannot connect");
+  }
+
+  try {
+    const r = await fetchWithTimeout(FILE_URL + "/health", 5000);
+    const txt = await r.text();
+    if (r.ok) setStatus("fileStatus", "ok",  " FILE — " + txt);
+    else       setStatus("fileStatus", "err", " FILE — " + txt);
+  } catch(e) {
+    setStatus("fileStatus", "err", " FILE — Cannot connect");
+  }
 }
 
-// Login
-async function login(){
-    let username = document.getElementById("loginUsername").value;
-    let password = document.getElementById("loginPassword").value;
-
-    let res = await fetch(SOAP_URL + "/login",{
-        method:"POST",
-        headers: {"Content-Type":"application/json"},
-        body: JSON.stringify({username, password})
-    });
-    let token = await res.text();
-    localStorage.setItem("token", token);
-    alert("Login success!");
+function setStatus(id, cls, msg) {
+  const el = document.getElementById(id);
+  el.className = "statusBadge " + cls;
+  el.textContent = msg;
 }
 
-// Create Profile
-async function createProfile(){
-    let token = localStorage.getItem("token");
-    if(!token){ alert("Login first!"); return; }
-
-    let name = document.getElementById("name").value;
-    let email = document.getElementById("email").value;
-    let bio = document.getElementById("bio").value;
-    let phone = document.getElementById("phone").value;
-
-    let res = await fetch(JSON_URL + "/users",{
-        method:"POST",
-        headers:{
-            "Content-Type":"application/json",
-            "Authorization": token
-        },
-        body: JSON.stringify({name,email,bio,phone})
-    });
-
-    alert("Profile created!");
+function fetchWithTimeout(url, ms) {
+  return Promise.race([
+    fetch(url),
+    new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), ms))
+  ]);
 }
 
-// Get Profile
-async function getProfile(){
-    let token = localStorage.getItem("token");
-    if(!token){ alert("Login first!"); return; }
+// ─────────────────── Tab navigation ───────────────────────────────────────
+function showTab(id) {
+  document.querySelectorAll("section").forEach(s => s.classList.remove("active"));
+  document.querySelectorAll("nav button").forEach(b => b.classList.remove("active"));
+  document.getElementById(id).classList.add("active");
+  document.getElementById("tab-" + id).classList.add("active");
+}
 
-    let id = document.getElementById("userid").value;
-    if(!id){ alert("Enter profile ID!"); return; }
+// ─────────────────── Alert helper ─────────────────────────────────────────
+function showAlert(id, type, msg) {
+  const el = document.getElementById(id);
+  el.className = "alert " + type + " show";
+  el.textContent = msg;
+}
+function clearAlert(id) {
+  const el = document.getElementById(id);
+  el.className = "alert";
+  el.textContent = "";
+}
 
-    let res = await fetch(JSON_URL + "/users/" + id,{
-        headers: {"Authorization": token}
+// ─────────────────── Register ─────────────────────────────────────────────
+async function doRegister() {
+  clearAlert("regAlert");
+  const username = document.getElementById("regUsername").value.trim();
+  const password = document.getElementById("regPassword").value;
+  if (!username || !password) {
+    showAlert("regAlert", "error", "Please enter username and password.");
+    return;
+  }
+
+  try {
+    const res = await fetch(SOAP_URL + "/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password })
+    });
+    const text = await res.text();
+    if (res.ok) {
+      showAlert("regAlert", "success", " " + text + " — You can now login.");
+      document.getElementById("regUsername").value = "";
+      document.getElementById("regPassword").value = "";
+    } else if (res.status === 409) {
+      showAlert("regAlert", "error", " Username already exists. Try a different one.");
+    } else {
+      showAlert("regAlert", "error", " " + text);
+    }
+  } catch(e) {
+    showAlert("regAlert", "error", " Cannot reach SOAP service (port 8080). Is it running?");
+  }
+}
+
+// ─────────────────── Login ────────────────────────────────────────────────
+async function doLogin() {
+  clearAlert("loginAlert");
+  document.getElementById("tokenBox").classList.remove("show");
+  const username = document.getElementById("loginUsername").value.trim();
+  const password = document.getElementById("loginPassword").value;
+  if (!username || !password) {
+    showAlert("loginAlert", "error", "Please enter username and password.");
+    return;
+  }
+
+  try {
+    const res = await fetch(SOAP_URL + "/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password })
+    });
+    const text = await res.text();
+
+    if (!res.ok) {
+      // 401 = wrong credentials
+      showAlert("loginAlert", "error", " " + text);
+      return;
+    }
+
+    // Successful login — text is the token
+    const token = text.trim();
+    currentToken    = token;
+    currentUsername = username;
+    localStorage.setItem("token",    token);
+    localStorage.setItem("username", username);
+    localStorage.removeItem("profileId");
+    currentProfileId = null;
+
+    showAlert("loginAlert", "success", "✅ Login successful! Welcome, " + username);
+    document.getElementById("tokenBox").textContent = "Token: " + token;
+    document.getElementById("tokenBox").classList.add("show");
+    document.getElementById("loggedUser").textContent = "Logged in as: " + username;
+    document.getElementById("tab-profile").classList.remove("hidden");
+
+    setTimeout(() => showTab("profile"), 1200);
+  } catch(e) {
+    showAlert("loginAlert", "error", " Cannot reach SOAP service (port 8080). Is it running?");
+  }
+}
+
+// ─────────────────── Profile ──────────────────────────────────────────────
+async function saveProfile() {
+  clearAlert("profileAlert");
+  const name  = document.getElementById("pName").value.trim();
+  const email = document.getElementById("pEmail").value.trim();
+  const bio   = document.getElementById("pBio").value.trim();
+  const phone = document.getElementById("pPhone").value.trim();
+
+  if (!name || !email) {
+    showAlert("profileAlert", "error", "Name and Email are required.");
+    return;
+  }
+
+  try {
+    let res, data;
+    if (currentProfileId) {
+      // Update existing profile
+      res = await fetch(JSON_URL + "/users/" + currentProfileId, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", "Authorization": currentToken },
+        body: JSON.stringify({ name, email, bio, phone })
+      });
+    } else {
+      // Create new profile
+      res = await fetch(JSON_URL + "/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": currentToken },
+        body: JSON.stringify({ name, email, bio, phone })
+      });
+    }
+
+    if (res.status === 401) {
+      let errText = "";
+      try { const j = await res.json(); errText = j.error || ""; } catch(_) { errText = await res.text(); }
+      showAlert("profileAlert", "error", " Unauthorized: " + errText + " — Please login again.");
+      return;
+    }
+    if (!res.ok) {
+      const errText = await res.text();
+      showAlert("profileAlert", "error", " Error: " + errText);
+      return;
+    }
+
+    data = await res.json();
+    currentProfileId = data.id;
+    localStorage.setItem("profileId", data.id);
+    displayProfile(data);
+    showAlert("profileAlert", "success", " Profile saved successfully! (ID: " + data.id + ")");
+  } catch(e) {
+    showAlert("profileAlert", "error", " Cannot reach JSON service (port 8081). Is it running?");
+  }
+}
+
+async function loadProfile() {
+  clearAlert("profileAlert");
+  if (!currentProfileId) {
+    showAlert("profileAlert", "info", " No saved profile found. Fill in the form and save.");
+    return;
+  }
+  try {
+    const res = await fetch(JSON_URL + "/users/" + currentProfileId, {
+      headers: { "Authorization": currentToken }
+    });
+    if (res.status === 401) {
+      showAlert("profileAlert", "error", " Session expired. Please login again.");
+      return;
+    }
+    if (res.status === 404) {
+      showAlert("profileAlert", "error", " Profile not found (may have been deleted).");
+      currentProfileId = null;
+      localStorage.removeItem("profileId");
+      return;
+    }
+    if (!res.ok) {
+      showAlert("profileAlert", "error", " Error loading profile.");
+      return;
+    }
+    const data = await res.json();
+    displayProfile(data);
+    // Populate form with existing data
+    document.getElementById("pName").value  = data.name  || "";
+    document.getElementById("pEmail").value = data.email || "";
+    document.getElementById("pBio").value   = data.bio   || "";
+    document.getElementById("pPhone").value = data.phone || "";
+    showAlert("profileAlert", "success", " Profile loaded.");
+  } catch(e) {
+    showAlert("profileAlert", "error", " Cannot reach JSON service (port 8081). Is it running?");
+  }
+}
+
+async function deleteProfile() {
+  if (!currentProfileId) { showAlert("profileAlert", "error", "No profile to delete."); return; }
+  if (!confirm("Delete your profile permanently?")) return;
+  try {
+    const res = await fetch(JSON_URL + "/users/" + currentProfileId, {
+      method: "DELETE",
+      headers: { "Authorization": currentToken }
+    });
+    if (res.status === 401) { showAlert("profileAlert", "error", " Unauthorized."); return; }
+    if (!res.ok) { showAlert("profileAlert", "error", " Delete failed."); return; }
+
+    currentProfileId = null;
+    localStorage.removeItem("profileId");
+    document.getElementById("profileDisplay").classList.remove("show");
+    document.getElementById("pName").value = document.getElementById("pEmail").value =
+    document.getElementById("pBio").value  = document.getElementById("pPhone").value = "";
+    showAlert("profileAlert", "success", " Profile deleted.");
+  } catch(e) {
+    showAlert("profileAlert", "error", " Cannot reach JSON service (port 8081).");
+  }
+}
+
+function displayProfile(data) {
+  document.getElementById("dId").textContent    = data.id    || "—";
+  document.getElementById("dName").textContent  = data.name  || "—";
+  document.getElementById("dEmail").textContent = data.email || "—";
+  document.getElementById("dBio").textContent   = data.bio   || "—";
+  document.getElementById("dPhone").textContent = data.phone || "—";
+  if (data.photoUrl) {
+    document.getElementById("dPhoto").src = data.photoUrl;
+    document.getElementById("photoRow").style.display = "flex";
+  } else {
+    document.getElementById("photoRow").style.display = "none";
+  }
+  document.getElementById("profileDisplay").classList.add("show");
+}
+
+// ─────────────────── File Manager — via File Manager Service ──────────────
+async function uploadFile() {
+  if (!currentToken) {
+    showAlert("fileAlert", "error", " Please login first to upload files.");
+    return;
+  }
+  const fileInput = document.getElementById("fileInput");
+  const file = fileInput.files[0];
+  if (!file) {
+    showAlert("fileAlert", "error", "Please select an image file.");
+    return;
+  }
+  if (!file.type.startsWith("image/")) {
+    showAlert("fileAlert", "error", "Only image files are allowed.");
+    return;
+  }
+
+  showAlert("fileAlert", "info", "⏳ Uploading…");
+  try {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const res = await fetch(FILE_URL + "/files/upload", {
+      method: "POST",
+      headers: { "Authorization": currentToken },
+      body: formData
     });
 
-    let data = await res.json();
-    document.getElementById("result").innerText = JSON.stringify(data,null,2);
+    if (res.status === 401) {
+      showAlert("fileAlert", "error", " Unauthorized — Please login again.");
+      return;
+    }
+    if (!res.ok) {
+      const err = await res.text();
+      showAlert("fileAlert", "error", "❌ Upload failed: " + err);
+      return;
+    }
+
+    const data = await res.json();
+    const publicUrl = data.url;
+    showAlert("fileAlert", "success", "✅ Uploaded: " + (data.originalName || file.name));
+    document.getElementById("uploadedImg").src = publicUrl;
+    document.getElementById("uploadedFilename").textContent = "URL: " + publicUrl;
+    document.getElementById("uploadedPreview").style.display = "block";
+    fileInput.value = "";
+
+    // Save photo URL to user profile
+    if (currentProfileId) {
+      try {
+        const profileRes = await fetch(JSON_URL + "/users/" + currentProfileId, {
+          headers: { "Authorization": currentToken }
+        });
+        if (profileRes.ok) {
+          const profile = await profileRes.json();
+          profile.photoUrl = publicUrl;
+          await fetch(JSON_URL + "/users/" + currentProfileId, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json", "Authorization": currentToken },
+            body: JSON.stringify(profile)
+          });
+        }
+      } catch(_) { /* non-critical */ }
+    }
+
+    loadFiles();
+  } catch(e) {
+    showAlert("fileAlert", "error", "❌ Upload failed: " + e.message);
+  }
+}
+
+async function loadFiles() {
+  const container = document.getElementById("fileList");
+  container.innerHTML = "<span style='color:#888;font-size:0.85rem'>Loading…</span>";
+
+  if (!currentToken) {
+    container.innerHTML = "<span style='color:#aaa;font-size:0.85rem'> Login to view uploaded files.</span>";
+    return;
+  }
+
+  try {
+    const res = await fetch(FILE_URL + "/files", {
+      headers: { "Authorization": currentToken }
+    });
+    if (!res.ok) {
+      container.innerHTML = "<span style='color:#c00;font-size:0.85rem'>❌ Error: " + res.status + "</span>";
+      return;
+    }
+    const filenames = await res.json(); // array of filename strings
+    if (!filenames || filenames.length === 0) {
+      container.innerHTML = "<span style='color:#aaa;font-size:0.85rem'>No files uploaded yet.</span>";
+      return;
+    }
+    container.innerHTML = "";
+    filenames.forEach(name => {
+      const url = SPACES_CDN_BASE + "/" + name;
+      const wrap = document.createElement("div");
+      wrap.style = "position:relative;display:inline-block;";
+      const img = document.createElement("img");
+      img.src = url;
+      img.title = name;
+      img.style = "width:100px;height:100px;object-fit:cover;border-radius:8px;border:1px solid #ddd;cursor:pointer;";
+      img.onclick = () => window.open(url, "_blank");
+      const del = document.createElement("button");
+      del.textContent = "✕";
+      del.style = "position:absolute;top:2px;right:2px;background:rgba(0,0,0,0.55);color:#fff;border:none;border-radius:50%;width:20px;height:20px;font-size:0.7rem;cursor:pointer;line-height:1;";
+      del.onclick = async (e) => {
+        e.stopPropagation();
+        if (!confirm("Delete " + name + "?")) return;
+        try {
+          const r = await fetch(FILE_URL + "/files/" + encodeURIComponent(name), {
+            method: "DELETE",
+            headers: { "Authorization": currentToken }
+          });
+          if (r.ok) loadFiles();
+          else alert("Delete failed: " + r.status);
+        } catch(err) {
+          alert("Delete failed: " + err.message);
+        }
+      };
+      wrap.appendChild(img);
+      wrap.appendChild(del);
+      container.appendChild(wrap);
+    });
+  } catch(e) {
+    container.innerHTML = "<span style='color:#c00;font-size:0.85rem'>❌ Cannot reach File Manager: " + e.message + "</span>";
+  }
+}
+
+// ─────────────────── Logout ───────────────────────────────────────────────
+function doLogout() {
+  currentToken = null; currentUsername = null; currentProfileId = null;
+  localStorage.removeItem("token");
+  localStorage.removeItem("username");
+  localStorage.removeItem("profileId");
+  document.getElementById("loggedUser").textContent = "Not logged in";
+  document.getElementById("tab-profile").classList.add("hidden");
+  document.getElementById("profileDisplay").classList.remove("show");
+  showTab("login");
+  showAlert("loginAlert", "info", " Logged out successfully.");
 }
 </script>
-
 </body>
 </html>
