@@ -46,18 +46,20 @@ if (process.env.REDIS_URL) {
   redis = new Redis(process.env.REDIS_URL, {
     lazyConnect: true,
     maxRetriesPerRequest: 1,
-    retryStrategy: (n) => (n > 2 ? null : 500),
+    retryStrategy: (n) => (n > 5 ? null : Math.min(n * 500, 3000)),
+    tls: { rejectUnauthorized: false },
   });
 } else {
   redis = new Redis({
     host:     process.env.REDIS_HOST     || '127.0.0.1',
     port:     parseInt(process.env.REDIS_PORT || '6379'),
+    username: process.env.REDIS_USERNAME || 'default',
     password: process.env.REDIS_PASSWORD || undefined,
-    // DO Managed Redis нь TLS шаарддаг (port 25061)
-    tls:      process.env.REDIS_HOST ? {} : undefined,
+    // DO Managed Valkey/Redis нь TLS шаарддаг, rejectUnauthorized:false шаардлагатай
+    tls:      process.env.REDIS_HOST ? { rejectUnauthorized: false } : undefined,
     lazyConnect: true,
     maxRetriesPerRequest: 1,
-    retryStrategy: (n) => (n > 2 ? null : 500),
+    retryStrategy: (n) => (n > 5 ? null : Math.min(n * 500, 3000)),
   });
 }
 
